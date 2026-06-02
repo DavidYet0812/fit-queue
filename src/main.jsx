@@ -107,14 +107,36 @@ const resolveMediaSource = (url) => {
   if (driveMatch?.[1]) {
     return {
       kind: "embed",
+      provider: "drive",
       src: `https://drive.google.com/file/d/${driveMatch[1]}/preview`
+    };
+  }
+
+  const youtubeMatch =
+    value.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&?/]+)/i) ||
+    value.match(/youtube\.com\/embed\/([^&?/]+)/i);
+  if (youtubeMatch?.[1]) {
+    return {
+      kind: "embed",
+      provider: "youtube",
+      src: `https://www.youtube.com/embed/${youtubeMatch[1]}`
     };
   }
 
   return {
     kind: "video",
+    provider: "file",
     src: resolveVideoUrl(value)
   };
+};
+
+const getAutoplayEmbedSrc = (media) => {
+  if (!media.src || media.kind !== "embed") return media.src;
+  const separator = media.src.includes("?") ? "&" : "?";
+  if (media.provider === "youtube") {
+    return `${media.src}${separator}autoplay=1&mute=1&playsinline=1`;
+  }
+  return `${media.src}${separator}autoplay=1`;
 };
 
 function useAudioCoach() {
@@ -364,6 +386,7 @@ function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [phase, setPhase] = useState("ready");
+  const [embedAutoplayKey, setEmbedAutoplayKey] = useState(0);
   const [wakeLock, setWakeLock] = useState(null);
   const intervalRef = useRef(null);
   const runTokenRef = useRef(0);
@@ -376,6 +399,10 @@ function App() {
   const exerciseLibrary = exercises;
   const activeExercise = queue[currentIndex];
   const activeMedia = resolveMediaSource(activeExercise?.videoUrl);
+  const activeEmbedSrc =
+    activeMedia.kind === "embed" && status === "running" && phase === "exercise"
+      ? getAutoplayEmbedSrc(activeMedia)
+      : activeMedia.src;
   const activeWorkoutSeconds = useMemo(
     () => queue.reduce((sum, item) => sum + item.duration, 0),
     [queue]
@@ -412,6 +439,12 @@ function App() {
       video.currentTime = 0;
     }
   }, [status, phase, activeMedia.src]);
+
+  useEffect(() => {
+    if (activeMedia.kind === "embed" && status === "running" && phase === "exercise") {
+      setEmbedAutoplayKey((value) => value + 1);
+    }
+  }, [activeMedia.kind, activeMedia.src, status, phase]);
 
   useEffect(() => {
     setQueue((items) =>
@@ -689,9 +722,9 @@ function App() {
               ) : activeMedia.src ? (
                 <iframe
                   ref={mediaFrameRef}
-                  key={activeMedia.src}
+                  key={`${activeEmbedSrc}-${embedAutoplayKey}`}
                   className="demo-video"
-                  src={activeMedia.src}
+                  src={activeEmbedSrc}
                   title={`${activeExercise?.name || "動作"} 示範影片`}
                   allow="autoplay; fullscreen; encrypted-media"
                   allowFullScreen
