@@ -217,7 +217,7 @@ function AdminPage({ exercises, onExerciseChange, onExerciseAdd, onExerciseDelet
               <p>統一管理動作與示範影片，前台訓練頁只讀取設定</p>
             </div>
           </div>
-          <a className="admin-link" href="/">回前台</a>
+          <a className="admin-link" href={import.meta.env.BASE_URL}>回前台</a>
         </header>
 
         <section className="admin-panel">
@@ -315,7 +315,7 @@ function AdminPage({ exercises, onExerciseChange, onExerciseAdd, onExerciseDelet
 }
 
 function App() {
-  const [isAdmin] = useState(() => window.location.pathname === "/admin");
+  const [isAdmin] = useState(() => window.location.pathname.replace(/\/$/, "").endsWith("/admin"));
   const [exercises, setExercises] = useState(loadExercises);
   const [draggingId, setDraggingId] = useState(null);
   const [queue, setQueue] = useState(() =>
