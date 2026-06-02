@@ -101,6 +101,22 @@ const resolveVideoUrl = (url) => {
   return `${cleanBase}${cleanPath}`;
 };
 
+const resolveMediaSource = (url) => {
+  const value = (url || "").trim();
+  const driveMatch = value.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  if (driveMatch?.[1]) {
+    return {
+      kind: "embed",
+      src: `https://drive.google.com/file/d/${driveMatch[1]}/preview`
+    };
+  }
+
+  return {
+    kind: "video",
+    src: resolveVideoUrl(value)
+  };
+};
+
 function useAudioCoach() {
   const audioRef = useRef(null);
   const speechTimeoutRef = useRef(null);
@@ -354,11 +370,12 @@ function App() {
   const statusRef = useRef(status);
   const wakeLockRef = useRef(null);
   const videoRef = useRef(null);
+  const mediaFrameRef = useRef(null);
   const { ensureAudio, beep, speak, speakAsync, stopSpeech } = useAudioCoach();
 
   const exerciseLibrary = exercises;
   const activeExercise = queue[currentIndex];
-  const activeVideoSrc = resolveVideoUrl(activeExercise?.videoUrl);
+  const activeMedia = resolveMediaSource(activeExercise?.videoUrl);
   const activeWorkoutSeconds = useMemo(
     () => queue.reduce((sum, item) => sum + item.duration, 0),
     [queue]
@@ -394,7 +411,7 @@ function App() {
       video.pause();
       video.currentTime = 0;
     }
-  }, [status, phase, activeVideoSrc]);
+  }, [status, phase, activeMedia.src]);
 
   useEffect(() => {
     setQueue((items) =>
@@ -626,7 +643,7 @@ function App() {
   const progress = phase === "exerciseCue" ? 0 : progressMax ? Math.max(0, Math.min(100, ((progressMax - secondsLeft) / progressMax) * 100)) : 0;
 
   const openVideoFullscreen = () => {
-    const target = videoRef.current;
+    const target = videoRef.current || mediaFrameRef.current;
     if (!target) return;
     if (target.requestFullscreen) target.requestFullscreen().catch(() => {});
     else if (target.webkitEnterFullscreen) target.webkitEnterFullscreen();
@@ -658,16 +675,26 @@ function App() {
             </div>
 
             <div className="motion-stage" style={{ "--accent": activeExercise?.accent || "#f97316" }}>
-              {activeVideoSrc ? (
+              {activeMedia.src && activeMedia.kind === "video" ? (
                 <video
                   ref={videoRef}
-                  key={activeVideoSrc}
+                  key={activeMedia.src}
                   className="demo-video"
-                  src={activeVideoSrc}
+                  src={activeMedia.src}
                   controls
                   loop
                   playsInline
                   preload="metadata"
+                />
+              ) : activeMedia.src ? (
+                <iframe
+                  ref={mediaFrameRef}
+                  key={activeMedia.src}
+                  className="demo-video"
+                  src={activeMedia.src}
+                  title={`${activeExercise?.name || "動作"} 示範影片`}
+                  allow="autoplay; fullscreen; encrypted-media"
+                  allowFullScreen
                 />
               ) : (
                 <>
@@ -682,7 +709,7 @@ function App() {
                 </>
               )}
 
-              {activeVideoSrc && (
+              {activeMedia.src && (
                 <button className="fullscreen-button" type="button" onClick={openVideoFullscreen} title="全螢幕播放">
                   <Expand size={18} />
                 </button>
