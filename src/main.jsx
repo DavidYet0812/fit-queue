@@ -90,6 +90,17 @@ const formatDuration = (seconds) => {
   return `${minutes}分${remainder}秒`;
 };
 
+const resolveVideoUrl = (url) => {
+  const value = (url || "").trim();
+  if (!value) return "";
+  if (/^(https?:|blob:|data:)/i.test(value)) return value;
+
+  const base = import.meta.env.BASE_URL || "/";
+  const cleanBase = base.endsWith("/") ? base : `${base}/`;
+  const cleanPath = value.replace(/^\/+/, "");
+  return `${cleanBase}${cleanPath}`;
+};
+
 function useAudioCoach() {
   const audioRef = useRef(null);
   const speechTimeoutRef = useRef(null);
@@ -298,7 +309,7 @@ function AdminPage({ exercises, onExerciseChange, onExerciseAdd, onExerciseDelet
               />
               <input
                 type="url"
-                placeholder={`/${exercise.id}.mp4 或 https://...`}
+                placeholder="/demos/1.mp4 或 https://..."
                 aria-label={`${exercise.name} 示範影片網址`}
                 value={exercise.videoUrl || ""}
                 onChange={(event) => onExerciseChange(exercise.id, { videoUrl: event.target.value })}
@@ -347,6 +358,7 @@ function App() {
 
   const exerciseLibrary = exercises;
   const activeExercise = queue[currentIndex];
+  const activeVideoSrc = resolveVideoUrl(activeExercise?.videoUrl);
   const activeWorkoutSeconds = useMemo(
     () => queue.reduce((sum, item) => sum + item.duration, 0),
     [queue]
@@ -382,7 +394,7 @@ function App() {
       video.pause();
       video.currentTime = 0;
     }
-  }, [status, phase, activeExercise?.videoUrl]);
+  }, [status, phase, activeVideoSrc]);
 
   useEffect(() => {
     setQueue((items) =>
@@ -646,12 +658,12 @@ function App() {
             </div>
 
             <div className="motion-stage" style={{ "--accent": activeExercise?.accent || "#f97316" }}>
-              {activeExercise?.videoUrl ? (
+              {activeVideoSrc ? (
                 <video
                   ref={videoRef}
-                  key={activeExercise.videoUrl}
+                  key={activeVideoSrc}
                   className="demo-video"
-                  src={activeExercise.videoUrl}
+                  src={activeVideoSrc}
                   controls
                   loop
                   playsInline
@@ -670,7 +682,7 @@ function App() {
                 </>
               )}
 
-              {activeExercise?.videoUrl && (
+              {activeVideoSrc && (
                 <button className="fullscreen-button" type="button" onClick={openVideoFullscreen} title="全螢幕播放">
                   <Expand size={18} />
                 </button>
