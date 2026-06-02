@@ -315,7 +315,10 @@ function AdminPage({ exercises, onExerciseChange, onExerciseAdd, onExerciseDelet
 }
 
 function App() {
-  const [isAdmin] = useState(() => window.location.pathname.replace(/\/$/, "").endsWith("/admin"));
+  const [isAdmin] = useState(() => {
+    const path = window.location.pathname.replace(/\/$/, "");
+    return path.endsWith("/admin") || window.location.hash === "#/admin";
+  });
   const [exercises, setExercises] = useState(loadExercises);
   const [draggingId, setDraggingId] = useState(null);
   const [queue, setQueue] = useState(() =>
