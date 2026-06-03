@@ -134,7 +134,7 @@ const getAutoplayEmbedSrc = (media) => {
   if (!media.src || media.kind !== "embed") return media.src;
   const separator = media.src.includes("?") ? "&" : "?";
   if (media.provider === "youtube") {
-    return `${media.src}${separator}autoplay=1&mute=1&playsinline=1`;
+    return `${media.src}${separator}autoplay=1&mute=1&playsinline=1&enablejsapi=1`;
   }
   return `${media.src}${separator}autoplay=1`;
 };
@@ -399,10 +399,9 @@ function App() {
   const exerciseLibrary = exercises;
   const activeExercise = queue[currentIndex];
   const activeMedia = resolveMediaSource(activeExercise?.videoUrl);
-  const activeEmbedSrc =
-    activeMedia.kind === "embed" && status === "running" && phase === "exercise"
-      ? getAutoplayEmbedSrc(activeMedia)
-      : activeMedia.src;
+  const initialEmbedSrc = useMemo(() => {
+    return getAutoplayEmbedSrc(activeMedia);
+  }, [activeMedia.src]);
   const activeWorkoutSeconds = useMemo(
     () => queue.reduce((sum, item) => sum + item.duration, 0),
     [queue]
@@ -425,26 +424,47 @@ function App() {
   }, [status]);
 
   useEffect(() => {
+    const isPlaying = status === "running" && phase === "exercise";
+
+    // 1. 控制本地 <video>
     const video = videoRef.current;
-    if (!video) return;
-
-    if (status === "running" && phase === "exercise") {
-      video.muted = false;
-      video.play().catch(() => {
-        video.muted = true;
-        video.play().catch(() => {});
-      });
-    } else {
-      video.pause();
-      video.currentTime = 0;
+    if (video) {
+      if (isPlaying) {
+        video.muted = false;
+        video.play().catch(() => {
+          video.muted = true;
+          video.play().catch(() => {});
+        });
+      } else {
+        video.pause();
+        if (status === "setup" || phase === "rest" || phase === "ready" || phase === "exerciseCue") {
+          video.currentTime = 0;
+        }
+      }
     }
-  }, [status, phase, activeMedia.src]);
 
-  useEffect(() => {
-    if (activeMedia.kind === "embed" && status === "running" && phase === "exercise") {
-      setEmbedAutoplayKey((value) => value + 1);
+    // 2. 控制 YouTube <iframe>
+    const iframe = mediaFrameRef.current;
+    if (iframe && activeMedia.provider === "youtube" && iframe.contentWindow) {
+      if (isPlaying) {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+          "*"
+        );
+      } else {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+          "*"
+        );
+        if (status === "setup" || phase === "rest" || phase === "ready" || phase === "exerciseCue") {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({ event: "command", func: "seekTo", args: [0, true] }),
+            "*"
+          );
+        }
+      }
     }
-  }, [activeMedia.kind, activeMedia.src, status, phase]);
+  }, [status, phase, activeMedia.src, activeMedia.provider]);
 
   useEffect(() => {
     setQueue((items) =>
@@ -722,9 +742,9 @@ function App() {
               ) : activeMedia.src ? (
                 <iframe
                   ref={mediaFrameRef}
-                  key={`${activeEmbedSrc}-${embedAutoplayKey}`}
+                  key={activeMedia.src}
                   className="demo-video"
-                  src={activeEmbedSrc}
+                  src={initialEmbedSrc}
                   title={`${activeExercise?.name || "動作"} 示範影片`}
                   allow="autoplay; fullscreen; encrypted-media"
                   allowFullScreen
