@@ -137,7 +137,8 @@ const getAutoplayEmbedSrc = (media) => {
     const originParam = encodeURIComponent(window.location.origin);
     return `${media.src}${separator}mute=1&playsinline=1&enablejsapi=1&origin=${originParam}`;
   }
-  return `${media.src}${separator}autoplay=1`;
+  // Google Drive 等其他嵌入影片預設不加上 autoplay=1，避免在開始訓練前自動播放
+  return media.src;
 };
 
 function useAudioCoach() {
