@@ -401,9 +401,23 @@ function App() {
   const exerciseLibrary = exercises;
   const activeExercise = queue[currentIndex];
   const activeMedia = resolveMediaSource(activeExercise?.videoUrl);
+
+  const isPlaying = status === "running" && phase === "exercise";
+
   const initialEmbedSrc = useMemo(() => {
     return getAutoplayEmbedSrc(activeMedia);
   }, [activeMedia.src]);
+
+  const embedSrc = useMemo(() => {
+    if (activeMedia.provider === "youtube") {
+      return initialEmbedSrc;
+    }
+    if (activeMedia.provider === "drive") {
+      const separator = activeMedia.src.includes("?") ? "&" : "?";
+      return isPlaying ? `${activeMedia.src}${separator}autoplay=1` : activeMedia.src;
+    }
+    return activeMedia.src;
+  }, [activeMedia.src, activeMedia.provider, initialEmbedSrc, isPlaying]);
   const activeWorkoutSeconds = useMemo(
     () => queue.reduce((sum, item) => sum + item.duration, 0),
     [queue]
@@ -426,8 +440,6 @@ function App() {
   }, [status]);
 
   useEffect(() => {
-    const isPlaying = status === "running" && phase === "exercise";
-
     // 1. 控制本地 <video>
     const video = videoRef.current;
     if (video) {
@@ -466,7 +478,7 @@ function App() {
         }
       }
     }
-  }, [status, phase, activeMedia.src, activeMedia.provider]);
+  }, [isPlaying, status, phase, activeMedia.src, activeMedia.provider]);
 
   useEffect(() => {
     setQueue((items) =>
@@ -746,7 +758,7 @@ function App() {
                   ref={mediaFrameRef}
                   key={activeMedia.src}
                   className="demo-video"
-                  src={initialEmbedSrc}
+                  src={embedSrc}
                   title={`${activeExercise?.name || "動作"} 示範影片`}
                   allow="autoplay; fullscreen; encrypted-media"
                   allowFullScreen
