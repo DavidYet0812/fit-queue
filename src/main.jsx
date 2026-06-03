@@ -408,16 +408,28 @@ function App() {
     return getAutoplayEmbedSrc(activeMedia);
   }, [activeMedia.src]);
 
-  const embedSrc = useMemo(() => {
-    if (activeMedia.provider === "youtube") {
-      return initialEmbedSrc;
+  // 使用 State 管理影片網址，避免暫停與繼續時重新載入 iframe 導致影片回到第 0 秒
+  const [embedSrc, setEmbedSrc] = useState("");
+
+  // 每當動作影片網址改變，重置為不帶 autoplay 參數的初始狀態
+  useEffect(() => {
+    if (activeMedia.kind === "embed") {
+      setEmbedSrc(initialEmbedSrc);
+    } else {
+      setEmbedSrc("");
     }
-    if (activeMedia.provider === "drive") {
-      const separator = activeMedia.src.includes("?") ? "&" : "?";
-      return isPlaying ? `${activeMedia.src}${separator}autoplay=1` : activeMedia.src;
+  }, [activeMedia.src, initialEmbedSrc]);
+
+  // 當開始訓練且計時啟動時，若為 Google Drive 影片，則加上 autoplay=1 使其自動播放（僅在第一次播放時重載）
+  // 之後點擊暫停或繼續時，不會再去更新網址，從而使 iframe 保持原地暫停而不重載
+  useEffect(() => {
+    if (isPlaying && activeMedia.kind === "embed" && activeMedia.provider !== "youtube" && embedSrc) {
+      if (!embedSrc.includes("autoplay=1")) {
+        const separator = embedSrc.includes("?") ? "&" : "?";
+        setEmbedSrc(`${embedSrc}${separator}autoplay=1`);
+      }
     }
-    return activeMedia.src;
-  }, [activeMedia.src, activeMedia.provider, initialEmbedSrc, isPlaying]);
+  }, [isPlaying, activeMedia.kind, activeMedia.provider, embedSrc]);
   const activeWorkoutSeconds = useMemo(
     () => queue.reduce((sum, item) => sum + item.duration, 0),
     [queue]
