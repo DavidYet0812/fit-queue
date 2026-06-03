@@ -135,7 +135,7 @@ const getAutoplayEmbedSrc = (media) => {
   const separator = media.src.includes("?") ? "&" : "?";
   if (media.provider === "youtube") {
     const originParam = encodeURIComponent(window.location.origin);
-    return `${media.src}${separator}autoplay=1&mute=1&playsinline=1&enablejsapi=1&origin=${originParam}`;
+    return `${media.src}${separator}mute=1&playsinline=1&enablejsapi=1&origin=${originParam}`;
   }
   return `${media.src}${separator}autoplay=1`;
 };
