@@ -134,7 +134,8 @@ const getAutoplayEmbedSrc = (media) => {
   if (!media.src || media.kind !== "embed") return media.src;
   const separator = media.src.includes("?") ? "&" : "?";
   if (media.provider === "youtube") {
-    return `${media.src}${separator}autoplay=1&mute=1&playsinline=1&enablejsapi=1`;
+    const originParam = encodeURIComponent(window.location.origin);
+    return `${media.src}${separator}autoplay=1&mute=1&playsinline=1&enablejsapi=1&origin=${originParam}`;
   }
   return `${media.src}${separator}autoplay=1`;
 };
@@ -448,12 +449,12 @@ function App() {
     if (iframe && activeMedia.provider === "youtube" && iframe.contentWindow) {
       if (isPlaying) {
         iframe.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+          JSON.stringify({ event: "command", func: "playVideo", args: "" }),
           "*"
         );
       } else {
         iframe.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+          JSON.stringify({ event: "command", func: "pauseVideo", args: "" }),
           "*"
         );
         if (status === "setup" || phase === "rest" || phase === "ready" || phase === "exerciseCue") {
